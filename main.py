@@ -14,4 +14,3 @@ def loadWeatherData(filename):
     return arr
 
 data = loadWeatherData('weather_data.csv')
-print(data)
