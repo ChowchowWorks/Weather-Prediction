@@ -21,3 +21,4 @@ def plothumidity(data):
     plt.xlabel("Time Steps")
     plt.ylabel("Humidity")
     plt.title("Time Series Plot of Reletive Humidity")
+    plt.show()
