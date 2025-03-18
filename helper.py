@@ -5,14 +5,13 @@ import matplotlib.pyplot as plt
 def loadWeatherData(filename):
     # read in the weather CSV into a np array
     # return array
-    csv.lst = []
+    rawlst = []
     with open(filename, 'r') as file:
-        reader = csv.reader(file, delimiter= ';')
+        reader = csv.reader(file, delimiter= ',')
         header = next(reader)
-        print(header)
         for row in reader:
-            csv.lst.append(row)
-    arr = np.array(csv.lst)
+            rawlst.append(row)
+    arr = np.array(rawlst, dtype = float)
     return arr
 
 def plothumidity(data):
