@@ -3,5 +3,5 @@ import csv
 import helper as h
 import matplotlib.pyplot as plt
 
-data = h.loadWeatherData('weather_data.csv')
-h.plothumidity(data[:,6])
+data, d = h.loadWeatherData('weather_data.csv')
+h.plotdata(data, 1, d)
