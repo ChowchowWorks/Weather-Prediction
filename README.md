@@ -35,3 +35,15 @@
 - proper time series feature visualization
 - feature selection attempts through correlation analysis
 - You are expected to explore both deep learning based time series modeling and traditional ML techniques
+
+# ADF Test:
+- Stationarity Test (ADF Test) Results:
+- ADF Statistic = -8.41
+- p-value = 2.07e-13 (very small)
+- Critical Values:
+- 1%: -3.43
+- 5%: -2.86
+- 10%: -2.57
+- Conclusion:
+- Since the ADF statistic is much lower than the critical values and the p-value is very small (< 0.05), we reject the null hypothesis.
+- The data is already stationary, so we do NOT need to apply differencing.
