@@ -33,6 +33,17 @@ def plotdata(data, col, d):
     save_path = os.path.join(save_folder, save_filename)
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
+    df = pd.DataFrame(data, columns=header)
+
+    # Heatmap for feature correlation
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f")
+    plt.title("Feature Correlation Heatmap")
+    
+    # Save the heatmap
+    heatmap_path = os.path.join(save_folder, "correlation_heatmap.png")
+    plt.savefig(heatmap_path, dpi=300, bbox_inches='tight')
+    
     plt.show()
 
 
