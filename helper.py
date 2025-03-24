@@ -2,6 +2,7 @@ import numpy as np
 import csv
 import matplotlib.pyplot as plt
 import os
+from sklearn.model_selection import train_test_split
 
 def loadWeatherData(filename):
     # read in the weather CSV into a np array
@@ -45,6 +46,30 @@ def plotdata(data, col, d):
     plt.savefig(heatmap_path, dpi=300, bbox_inches='tight')
     
     plt.show()
+
+
+def splitData(data):
+    nrow, ncol = data.shape
+    X = data[:,:-1]
+    y = data[:, -1]
+    return X, y 
+
+def trainTest(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= 0.2, shuffle=False)
+    return X_train, X_test, y_train, y_test
+
+def standardizer(X):
+    mean = np.mean(X, axis = 0)
+    sdv = np.std(X, axis = 0)
+    standardized = (X - mean)/sdv
+    return standardized
+
+def addBias(X):
+    bias = np.ones((X.shape[0],1))
+    newX = np.hstack((bias, X))
+    return newX
+
+
 
 
 
