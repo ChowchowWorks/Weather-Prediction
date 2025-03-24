@@ -7,6 +7,10 @@ data, d = h.loadWeatherData('weather_data.csv')
 #for i in range(data.shape[1]):
 #   h.plotdata(data, i, d)
 
+# remove outlier data
+    # specifically rows that include humidity data that exceeded 1
+data = h.removeOutliers(data)
+
 # separate the y values 
 X, y = h.splitData(data)
 
