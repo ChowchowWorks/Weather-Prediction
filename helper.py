@@ -47,6 +47,10 @@ def plotdata(data, col, d):
     
     plt.show()
 
+def removeOutliers(data):
+    new = data[data[:, -1] <= 1]
+    return new
+
 
 def splitData(data):
     nrow, ncol = data.shape
