@@ -6,29 +6,29 @@ from torch.optim import Adam
 import lightning as L 
 from torch.utils.data import TensorDataset, dataloader
 
-class LSTMC(L.LightningModule):
-
-    def __init__(self):
-        # create and initialise Weight and Bias tensors
+class LSTM(L.LightningModule):
+    
+    def __init__(self, data_shape, hidden_size):
         super().__init__()
-        
-        # assign weight through normal distribution 
-        mean = torch.tensor(0.0)
-        std = torch.tensor(1.0)
-
-        # initialise weights 
-        self.stmw = nn.Parameter(torch.normal(mean = mean, std = std), requires_grad = True) #stmw stands for short-term memory weight
-
-
-    def lstm_unit(self, input, long, short):
-        # do lstm math
-
+        input_size = data_shape[1]
+        self.lstm = nn.LSTM(input_size= input_size, hidden_size= hidden_size)
+    
     def forward(self, input):
-        # make forward pass through unrolled lstm
-
+        lstm_out , temp = self.lstm(input)
+        prediction = lstm_out[:,-1]
+        return prediction
+    
     def configure_optimizers(self):
-        # configure Adam Optimizer
-        return super().configure_optimizers()
+        return Adam(self.parameters(), lr = 0.01)
     
     def training_step(self, batch, batch_idx):
-        # calculate loss and log training progress
+        X_train, y_train = batch
+        pred = self.forward(X_train)  # Get predictions from the model
+        loss_fn = nn.MSELoss()
+        loss = loss_fn(pred, y_train)  # Compute loss
+        return loss
+        
+        
+        
+
+    
