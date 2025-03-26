@@ -7,13 +7,12 @@ import lightning as L
 from torch.utils.data import TensorDataset, DataLoader
 
 data, d = h.loadWeatherData('weather_data.csv')
-data = h.removeOutliers(data)
-#for i in range(data.shape[1]):
-#   h.plotdata(data, i, d)
 
 # remove outlier data
     # specifically rows that include humidity data that exceeded 1
-
+data = h.removeOutliers(data)
+#for i in range(data.shape[1]):
+#   h.plotdata(data, i, d)
 
 # separate the y values 
 X, y = h.splitData(data)
@@ -26,23 +25,26 @@ X_train, X_test, y_train, y_test = h.trainTest(X, y)
 # standardise only the training X values 
 
 X_train = h.standardizer(X_train)
+X_test = h.standardizer(X_test)
 
 # add bias to data 
 X_train = h.addBias(X_train)
+X_test = h.addBias(X_test)
 
-# LSTM Model
-X_train = torch.tensor(X_train, dtype= torch.float32)
-y_train = torch.tensor(y_train, dtype= torch.float32)
-X_test = torch.tensor(X_test, dtype= torch.float32)
-y_test = torch.tensor(y_test, dtype = torch.float32)
-dataset = TensorDataset(X_train, y_train)
-dataloader = DataLoader(dataset, batch_size=32)
+# Keras LSTM
+nn2 = lstm.buildKerasLstm(X_train.shape, 1, "rmsprop", "mse", "mae")
+lstm_train = lstm.kerasinput(X_train, 1)
+history = nn2.fit(lstm_train, y_train,epochs=100, batch_size=32, shuffle=False) # tune epochs
+lstm_test = lstm.kerasinput(X_test, 1)
+mse = nn2.evaluate(lstm_test, y_test)
+print(mse)
 
-nn1 = lstm.LSTM(X_train.shape, 1)
+pred = nn2.predict(lstm_test)
 
-#train model 
-nn1 = lstm.trainModel(nn1, dataloader, 5)
-# run model 
-y_pred = lstm.runModel(nn1, X_test)
-# compute MSE
-mse = lstm.computeMSE(y_pred, y_test)
+x = np.arange(len(y_test))
+plt.plot(x, y_test, label = "actual", color = "blue")
+plt.plot(x, pred, label = "predicted", color = "orange", alpha = 0.8)
+plt.title("Actual vs Predicted")
+plt.xlabel("time")
+plt.ylabel("relative humidity")
+plt.show()

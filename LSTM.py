@@ -1,9 +1,15 @@
 import helper as h
+import numpy as np
 
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
 from torch.optim import Adam
+import keras as k 
+import tensorflow as tf
+from keras import Sequential
+from keras import layers
+
 
 import lightning as L 
 from torch.utils.data import TensorDataset, dataloader
@@ -58,4 +64,27 @@ def computeMSE(y_pred, y_test):
     print("Mean Squared Error (MSE):", mse.item())
     return mse
 
-    
+#### Keras LSTM Model #####    
+
+class kerasLSTM(Sequential):
+    def __init__(self, data_shape, hidden_size):
+        super().__init__()
+        self.add(layers.LSTM(units = 3)) #tune units
+
+        self.add(layers.Dense(1))
+
+def buildKerasLstm(data_shape, hidden_size, optimizer, loss, metrics):
+    if type(optimizer)!= str:
+        optimizer = str(optimizer)
+    if type(loss)!= str:
+        loss = str(optimizer)
+    if type(metrics)!= str:
+        metrics = str(metrics)
+
+    model = kerasLSTM(data_shape, hidden_size)
+    model.compile(optimizer= optimizer,loss= loss, metrics=[metrics])
+
+    return model
+
+def kerasinput(data, time_steps):
+    return np.reshape(data, (data.shape[0], time_steps, data.shape[1]))
