@@ -48,7 +48,7 @@ def time_split(data, test_size=0.2):
     return train_data, test_data
 
 # Create features for 1-hour, 6-hour, and 24-hour prediction tasks
-n_steps = 6  # Example for using the past 6 time points (adjustable)
+n_steps = 24  # Example for using the past 6 time points (adjustable)
 
 # Split data into train and test sets
 train_data, test_data = time_split(data)
