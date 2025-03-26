@@ -1,3 +1,5 @@
+import helper as h
+
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
@@ -27,8 +29,33 @@ class LSTM(L.LightningModule):
         loss_fn = nn.MSELoss()
         loss = loss_fn(pred, y_train)  # Compute loss
         return loss
+    
+def trainModel(model, dataloader, epochs):
+    
+    trainer = L.Trainer(max_epochs=epochs, accelerator="auto")
+    trainer.fit(model, train_dataloaders= dataloader)
+
+    return model
         
-        
-        
+def runModel(model, X_test):
+    # ensure LSTM in evaluation setting
+    model.eval()
+    # conver test data to tensor
+    X_test = torch.tensor(h.addBias(X_test), dtype=torch.float32)
+
+    # Add batch dimensions if necessary
+    if len(X_test.shape) == 2:
+        X_test = X_test.unsqueeze(0)
+    
+    # Disable gradient computation for inference
+    with torch.no_grad():
+        y_pred = model(X_test)
+
+    return y_pred
+
+def computeMSE(y_pred, y_test):
+    mse = F.mse_loss(y_pred, y_test)
+    print("Mean Squared Error (MSE):", mse.item())
+    return mse
 
     

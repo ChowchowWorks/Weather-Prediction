@@ -1,19 +1,19 @@
 import numpy as np
 import helper as h
-import LSTM 
-
+import lstm 
 import torch
 import matplotlib.pyplot as plt
 import lightning as L
 from torch.utils.data import TensorDataset, DataLoader
 
 data, d = h.loadWeatherData('weather_data.csv')
+data = h.removeOutliers(data)
 #for i in range(data.shape[1]):
 #   h.plotdata(data, i, d)
 
 # remove outlier data
     # specifically rows that include humidity data that exceeded 1
-data = h.removeOutliers(data)
+
 
 # separate the y values 
 X, y = h.splitData(data)
@@ -33,33 +33,16 @@ X_train = h.addBias(X_train)
 # LSTM Model
 X_train = torch.tensor(X_train, dtype= torch.float32)
 y_train = torch.tensor(y_train, dtype= torch.float32)
+X_test = torch.tensor(X_test, dtype= torch.float32)
+y_test = torch.tensor(y_test, dtype = torch.float32)
 dataset = TensorDataset(X_train, y_train)
-dataloader = DataLoader(dataset)
+dataloader = DataLoader(dataset, batch_size=32)
 
-lstm = LSTM.LSTM(X_train.shape, 1)
-trainer = L.Trainer(max_epochs=100)
-trainer.fit(lstm, train_dataloaders= dataloader)
+nn1 = lstm.LSTM(X_train.shape, 1)
 
-
-import torch
-import torch.nn.functional as F  # For MSE calculation
-
-# Ensure model is in evaluation mode
-lstm.eval()
-
-# Convert test data to tensor
-X_test = torch.tensor(h.addBias(X_test), dtype=torch.float32)
-y_test = torch.tensor(y_test, dtype=torch.float32)  # Actual values
-
-# Add batch dimension if necessary
-if len(X_test.shape) == 2:
-    X_test = X_test.unsqueeze(0)
-
-# Disable gradient computation for inference
-with torch.no_grad():
-    y_pred = lstm(X_test)
-
-# Compute Mean Squared Error (MSE)
-mse = F.mse_loss(y_pred, y_test)
-
-print("Mean Squared Error (MSE):", mse.item())  # Convert tensor to scalar
+#train model 
+nn1 = lstm.trainModel(nn1, dataloader, 5)
+# run model 
+y_pred = lstm.runModel(nn1, X_test)
+# compute MSE
+mse = lstm.computeMSE(y_pred, y_test)
