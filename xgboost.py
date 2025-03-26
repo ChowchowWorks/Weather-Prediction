@@ -97,12 +97,12 @@ def plot_predictions_vs_actual(predictions, actual, task_name):
     plt.figure(figsize=(10, 6))
     plt.plot(actual, label='Actual', color='blue')
     plt.plot(predictions, label='Predicted', color='red', linestyle='--')
-    plt.title(f'Predictions vs Actual for {task_name}')
+    plt.title(f'Predictions vs Actual for {task_name} - XGBoost')
     plt.xlabel('Time')
     plt.ylabel('Relative Humidity')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'{task_name}_predictions_vs_actual.png')
+    plt.savefig(f'{task_name}_predictions_vs_actual (XGBoost).png')
     plt.show()
 
 # Plot for 1-hour predictions
@@ -125,9 +125,9 @@ metrics_df = pd.DataFrame(metrics, columns=['MAE', 'MSE', 'RMSE'], index=['1 Hou
 # Plot the matrix as a heatmap
 plt.figure(figsize=(8, 6))
 sns.heatmap(metrics_df, annot=True, fmt='.4f', cmap='coolwarm', cbar=True)
-plt.title('Model Evaluation Metrics (MAE, MSE, RMSE)')
+plt.title('Model Evaluation Metrics (MAE, MSE, RMSE) - XGBoost')
 plt.tight_layout()
-plt.savefig('metrics_heatmap.png')
+plt.savefig('metrics_heatmap (XGBoost).png')
 plt.show()
 
 # Optionally print the results to the console
