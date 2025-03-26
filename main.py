@@ -37,7 +37,7 @@ dataset = TensorDataset(X_train, y_train)
 dataloader = DataLoader(dataset)
 
 lstm = LSTM.LSTM(X_train.shape, 1)
-trainer = L.Trainer(max_epochs=5)
+trainer = L.Trainer(max_epochs=100)
 trainer.fit(lstm, train_dataloaders= dataloader)
 
 
@@ -48,7 +48,7 @@ import torch.nn.functional as F  # For MSE calculation
 lstm.eval()
 
 # Convert test data to tensor
-X_test = torch.tensor(X_test, dtype=torch.float32)
+X_test = torch.tensor(h.addBias(X_test), dtype=torch.float32)
 y_test = torch.tensor(y_test, dtype=torch.float32)  # Actual values
 
 # Add batch dimension if necessary
