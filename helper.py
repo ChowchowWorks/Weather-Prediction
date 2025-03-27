@@ -73,6 +73,11 @@ def addBias(X):
     newX = np.hstack((bias, X))
     return newX
 
+def addTimeSteps(data):
+    # create a timesteps array
+    timesteps = np.arange(data.shape[0])
+    data = np.hstack((timesteps, data))
+    return data
 
 
 
