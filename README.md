@@ -15,11 +15,11 @@
 # Task Description:
 - You need to predict relative humidity of a time point based on data from previous time points without ever using relative humidity information from any time point
 - We want you to try three configurations based on the usage of data from previous time points:
-    (1) use past N (you can tune this) time point data starting from the immediate previous time point of the one to be forecasted for
+- (1) use past N (you can tune this) time point data starting from the immediate previous time point of the one to be forecasted for
         - you are trying to predict relative humidity for the next hour
-    (2) use past N (you can tune this) time point data starting from the 6 time points prior to the one to be forecasted for
+- (2) use past N (you can tune this) time point data starting from the 6 time points prior to the one to be forecasted for
         - you are trying to predict what will happen to relative humidity after 6 hours from now
-    (3) use past N (you can tune this) time point data starting from the 24 time points prior to the one to be forecasted for
+- (3) use past N (you can tune this) time point data starting from the 24 time points prior to the one to be forecasted for
         - you are trying to predict what will happen to relative humidity after one day
     Note:
     - You cannot use any weather information from the time point for which you are predicting humidity for in any of the above configurations
