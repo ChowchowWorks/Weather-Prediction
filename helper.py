@@ -79,6 +79,15 @@ def addTimeSteps(data):
     data = np.hstack((timesteps, data))
     return data
 
+def create_windows(data, n_steps, forecast_steps):
+    X, y = [], []
+    for i in range(n_steps, len(data) - forecast_steps):
+        X.append(data[i - n_steps:i, :-1])  # Use N previous time points as features
+        y.append(data[i + forecast_steps - 1, -1])  # Predict target after forecast_steps
+    return np.array(X), np.array(y)
+
+def flatten_windows(X):
+    return X.reshape((X.shape[0], -1))  # Flatten (samples, N, features) → (samples, N * features)
 
 
 
