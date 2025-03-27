@@ -34,7 +34,7 @@ X_test = h.addBias(X_test)
 # Keras LSTM
 nn2 = lstm.buildKerasLstm(X_train.shape, 1, "rmsprop", "mse", "mae")
 lstm_train = lstm.kerasinput(X_train, 1)
-history = nn2.fit(lstm_train, y_train,epochs=50, batch_size=32, shuffle=False, validation_split=0.2) # tune epochs
+history = nn2.fit(lstm_train, y_train,epochs=200, batch_size=32, shuffle=False, validation_split=0.2) # tune epochs
 
 plt.figure(figsize=(10, 5))
 plt.plot(history.history['loss'], label='Training MSE')
