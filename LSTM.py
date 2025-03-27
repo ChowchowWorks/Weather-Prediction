@@ -69,7 +69,7 @@ def computeMSE(y_pred, y_test):
 class kerasLSTM(Sequential):
     def __init__(self, data_shape, hidden_size):
         super().__init__()
-        self.add(layers.LSTM(units = 10)) #tune units
+        self.add(layers.LSTM(units = 5)) #tune units
 
         self.add(layers.Dense(1))
 
