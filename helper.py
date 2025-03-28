@@ -19,38 +19,9 @@ def loadWeatherData(filename):
     arr = np.array(rawlst, dtype = float)
     return arr , d
 
-def plotdata(data, col, d):
-    y_val = data[:,col]
-    name = d[col]
-    time_steps = np.arange(len(data))
-    plt.plot(time_steps, y_val, label = name, color = 'b', linestyle = '-')
-    plt.xlabel("Time Steps")
-    plt.ylabel(name)
-    plt.title(f"Time Series Plot of {name}")
-
-    save_folder = "plots"
-    os.makedirs(save_folder, exist_ok=True)
-    save_filename = f"{name}_plot.png"
-    save_path = os.path.join(save_folder, save_filename)
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    
-    df = pd.DataFrame(data, columns=header)
-
-    # Heatmap for feature correlation
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f")
-    plt.title("Feature Correlation Heatmap")
-    
-    # Save the heatmap
-    heatmap_path = os.path.join(save_folder, "correlation_heatmap.png")
-    plt.savefig(heatmap_path, dpi=300, bbox_inches='tight')
-    
-    plt.show()
-
 def removeOutliers(data):
     new = data[data[:, -1] <= 1]
     return new
-
 
 def splitData(data):
     nrow, ncol = data.shape
