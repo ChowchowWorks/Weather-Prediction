@@ -10,7 +10,7 @@ from keras import layers
 class kerasLSTM(Sequential):
     def __init__(self, data_shape, hidden_size):
         super().__init__()
-        self.add(layers.LSTM(units = 5)) #tune units
+        self.add(layers.LSTM(units = 1)) #tune units
 
         self.add(layers.Dense(1))
 
@@ -32,32 +32,42 @@ def kerasinput(data, time_steps):
 
 # load data into file 
 data, d = h.loadWeatherData("weather_data.csv")
+# remove outliers 
+data = h.removeOutliers(data)
+# split X y 
+X , y = h.splitData(data)
 
-# Keras LSTM
-nn2 = buildKerasLstm(X_train.shape, 1, "rmsprop", "mse", "mae")
-lstm_train = kerasinput(X_train, 1)
-history = nn2.fit(lstm_train, y_train,epochs=200, batch_size=32, shuffle=False, validation_split=0.2) # tune epochs
+# split train-test
+X_train, X_test, y_train, y_test = h.trainTest(X, y)
 
-plt.figure(figsize=(10, 5))
-plt.plot(history.history['loss'], label='Training MSE')
-plt.plot(history.history['val_loss'], label='Validation MSE')
-plt.xlabel('Epochs')
-plt.ylabel('Mean Squared Error')
-plt.title('MSE vs. Epochs')
-plt.legend()
-plt.grid()
-plt.show()
+# standardise 
+X_train = h.standardizer(X_train)
 
-lstm_test = lstm.kerasinput(X_test, 1)
-mse = nn2.evaluate(lstm_test, y_test)
-print(mse)
+forecast = [1, 6, 24]
+results = {}
 
-pred = nn2.predict(lstm_test)
+for i in forecast:
+    results[i] = {}
+    # create windows 
+    n_steps = 24
+    forecast_steps = i
+    X_train1, y_train1 = h.create_windows(np.hstack((X_train, np.reshape(y_train, (y_train.shape[0], 1)))), n_steps, forecast_steps)
 
-x = np.arange(len(y_test))
-plt.plot(x, y_test, label = "actual", color = "blue")
-plt.plot(x, pred, label = "predicted", color = "orange", alpha = 0.8)
-plt.title("Actual vs Predicted")
-plt.xlabel("time")
-plt.ylabel("relative humidity")
-plt.show()
+    # Keras LSTM
+    nn = buildKerasLstm(X_train1.shape,1, 'rmsprop', 'mse', 'mae')
+    history = nn.fit(X_train1, y_train1, 32, 10, validation_split=0.2)
+    plt.plot(range(len(history.history['loss'])), history.history['loss'])
+    plt.show()
+    plt.close()
+
+    # evaluate test data
+    X_test1, y_test1 = h.create_windows(np.hstack((h.standardizer(X_test), np.reshape(y_test, (y_test.shape[0], 1)))), n_steps, forecast_steps)
+    mse, mae = nn.evaluate(X_test1, y_test1, verbose= 1)
+
+    results[i]['mse'] = mse
+    results[i]['mae'] = mae
+
+print("Prediction Results:")
+for key in results:
+    print(f"MSE ({key}) = {results[key]['mse']}")
+    print(f"MAE ({key}) = {results[key]['mae']}")

@@ -3,6 +3,7 @@ import csv
 import matplotlib.pyplot as plt
 import os
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
 def loadWeatherData(filename):
     # read in the weather CSV into a np array
@@ -60,6 +61,17 @@ def create_windows(data, n_steps, forecast_steps):
 def flatten_windows(X):
     return X.reshape((X.shape[0], -1))  # Flatten (samples, N, features) → (samples, N * features)
 
+def plotData(x, y, *figname):
+    fig, ax = plt.subplots()  # Create a figure and an axis
+    ax.plot(x, y, marker='o', linestyle='-')  # Plot the data
 
+    # Save the figure if a filename is provided
+    if figname:
+        plt.savefig(figname[0])  # Take the first argument as the filename
 
+    plt.show()  
+    plt.close()
     
+def MSE(actual, pred):
+    mse = mean_squared_error(actual, pred)
+    return mse
