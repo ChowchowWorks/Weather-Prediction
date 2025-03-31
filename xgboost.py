@@ -2,97 +2,103 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import csv
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.model_selection import train_test_split
 
-# Load dataset
-data_path = 'weather_data.csv'
-df = pd.read_csv(data_path)
+# Helper Functions
+def loadWeatherData(filename):
+    rawlst = []
+    with open(filename, 'r') as file:
+        reader = csv.reader(file, delimiter=',')
+        header = next(reader)
+        for row in reader:
+            rawlst.append(row)
+    d = {i: header[i] for i in range(len(header))}
+    arr = np.array(rawlst, dtype=float)
+    return arr, d
 
-# Features and target
-features = ['temperature', 'wind_speed', 'mean_sea_level_pressure', 'surface_solar_radiation', 'surface_thermal_radiation', 'total_cloud_cover']
-target = 'relative_humidity'
-
-# Remove outliers
 def removeOutliers(data):
     return data[data[:, -1] <= 1]
 
-# Convert dataframe to numpy array and apply outlier removal
-data = df[features + [target]].values
-data = removeOutliers(data)
+def splitData(data):
+    X = data[:, :-1]
+    y = data[:, -1]
+    return X, y
 
-# Create data windows for prediction (N time points before forecast)
+def trainTest(X, y):
+    return train_test_split(X, y, test_size=0.2, shuffle=False)
+
+def standardizer(X):
+    mean = np.mean(X, axis=0)
+    sdv = np.std(X, axis=0)
+    return (X - mean) / sdv
+
+def addBias(X):
+    bias = np.ones((X.shape[0], 1))
+    return np.hstack((bias, X))
+
 def create_windows(data, n_steps, forecast_steps):
     X, y = [], []
     for i in range(n_steps, len(data) - forecast_steps):
-        X.append(data[i - n_steps:i, :-1])  # N previous time points as features
-        y.append(data[i + forecast_steps - 1, -1])  # Relative humidity after forecast_steps
-    X = np.array(X)
-    y = np.array(y)
-    
-    # Reshape X to be 2D (samples, features)
-    X = X.reshape((X.shape[0], -1))  # Flatten the time steps into a single dimension (n_samples, n_features)
-    
-    return X, y
+        X.append(data[i - n_steps:i, :-1])
+        y.append(data[i + forecast_steps - 1, -1])
+    return np.array(X), np.array(y)
 
-# Train-test split (80-20, no shuffling, time-based split)
-def time_split(data, test_size=0.2):
-    # Split data into 100 point groups and assign 80% for training, 20% for testing
-    n = len(data)
-    test_len = int(n * test_size)
-    
-    # The training set is the first portion, and the test set is the subsequent portion
-    train_data = data[:n - test_len]
-    test_data = data[n - test_len:]
-    
-    return train_data, test_data
+def flatten_windows(X):
+    return X.reshape((X.shape[0], -1))
 
-# Create features for 1-hour, 6-hour, and 24-hour prediction tasks
-n_steps = 24  # Example for using the past 6 time points (adjustable)
+# Load dataset
+data_path = 'weather_data.csv'
+data, feature_dict = loadWeatherData(data_path)
 
-# Split data into train and test sets
-train_data, test_data = time_split(data)
+# Remove outliers
+data = removeOutliers(data)
 
-# Task 1: Predict relative humidity for the next hour (forecast_steps = 1)
-X_train_1h, y_train_1h = create_windows(train_data, n_steps, 1)
-X_test_1h, y_test_1h = create_windows(test_data, n_steps, 1)
+# Split data into features and target
+X, y = splitData(data)
 
-# Task 2: Predict relative humidity for 6 hours ahead (forecast_steps = 6)
-X_train_6h, y_train_6h = create_windows(train_data, n_steps, 6)
-X_test_6h, y_test_6h = create_windows(test_data, n_steps, 6)
+# Standardize features
+X = standardizer(X)
 
-# Task 3: Predict relative humidity for 24 hours ahead (forecast_steps = 24)
-X_train_24h, y_train_24h = create_windows(train_data, n_steps, 24)
-X_test_24h, y_test_24h = create_windows(test_data, n_steps, 24)
+# Train-test split
+X_train, X_test, y_train, y_test = trainTest(X, y)
 
-# Train XGBoost model for each task and evaluate
+# Set number of past time steps for prediction
+n_steps = 24
 
-# Function to train and evaluate model
+# Create windows for different forecast horizons
+X_train_1h, y_train_1h = create_windows(np.hstack((X_train, y_train.reshape(-1,1))), n_steps, 1)
+X_test_1h, y_test_1h = create_windows(np.hstack((X_test, y_test.reshape(-1,1))), n_steps, 1)
+
+X_train_6h, y_train_6h = create_windows(np.hstack((X_train, y_train.reshape(-1,1))), n_steps, 6)
+X_test_6h, y_test_6h = create_windows(np.hstack((X_test, y_test.reshape(-1,1))), n_steps, 6)
+
+X_train_24h, y_train_24h = create_windows(np.hstack((X_train, y_train.reshape(-1,1))), n_steps, 24)
+X_test_24h, y_test_24h = create_windows(np.hstack((X_test, y_test.reshape(-1,1))), n_steps, 24)
+
+# Flatten windows
+X_train_1h, X_test_1h = flatten_windows(X_train_1h), flatten_windows(X_test_1h)
+X_train_6h, X_test_6h = flatten_windows(X_train_6h), flatten_windows(X_test_6h)
+X_train_24h, X_test_24h = flatten_windows(X_train_24h), flatten_windows(X_test_24h)
+
+# Train and evaluate function
 def train_and_evaluate(X_train, X_test, y_train, y_test):
-    model = XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5, objective='reg:squarederror')
+    model = XGBRegressor(n_estimators=200, learning_rate=0.05, max_depth=8, objective='reg:squarederror')
     model.fit(X_train, y_train)
-    
-    # Forecasting
     predictions = model.predict(X_test)
-    
-    # Evaluate the model
     mae = mean_absolute_error(y_test, predictions)
     mse = mean_squared_error(y_test, predictions)
     rmse = np.sqrt(mse)
-    
     return predictions, y_test, mae, mse, rmse
 
-# Task 1: Evaluate model for next hour prediction
+# Evaluate models
 predictions_1h, y_test_1h, mae_1h, mse_1h, rmse_1h = train_and_evaluate(X_train_1h, X_test_1h, y_train_1h, y_test_1h)
-
-# Task 2: Evaluate model for 6-hour ahead prediction
 predictions_6h, y_test_6h, mae_6h, mse_6h, rmse_6h = train_and_evaluate(X_train_6h, X_test_6h, y_train_6h, y_test_6h)
-
-# Task 3: Evaluate model for 24-hour ahead prediction
 predictions_24h, y_test_24h, mae_24h, mse_24h, rmse_24h = train_and_evaluate(X_train_24h, X_test_24h, y_train_24h, y_test_24h)
 
-# Plot predictions vs actual values for all three tasks
-
+# Plot results
 def plot_predictions_vs_actual(predictions, actual, task_name):
     plt.figure(figsize=(10, 6))
     plt.plot(actual, label='Actual', color='blue')
@@ -105,30 +111,15 @@ def plot_predictions_vs_actual(predictions, actual, task_name):
     plt.savefig(f'{task_name}_predictions_vs_actual (XGBoost).png')
     plt.show()
 
-# Plot for 1-hour predictions
 plot_predictions_vs_actual(predictions_1h, y_test_1h, "1 Hour")
-
-# Plot for 6-hour predictions
 plot_predictions_vs_actual(predictions_6h, y_test_6h, "6 Hours")
-
-# Plot for 24-hour predictions
 plot_predictions_vs_actual(predictions_24h, y_test_24h, "24 Hours")
 
-# Store results in a matrix for easier visualization
-metrics = np.array([[mae_1h, mse_1h, rmse_1h],
-                    [mae_6h, mse_6h, rmse_6h],
-                    [mae_24h, mse_24h, rmse_24h]])
+# Store results in a DataFrame
+metrics_df = pd.DataFrame(
+    [[mae_1h, mse_1h, rmse_1h], [mae_6h, mse_6h, rmse_6h], [mae_24h, mse_24h, rmse_24h]],
+    columns=['MAE', 'MSE', 'RMSE'],
+    index=['1 Hour', '6 Hours', '24 Hours']
+)
 
-# Create a DataFrame for better readability
-metrics_df = pd.DataFrame(metrics, columns=['MAE', 'MSE', 'RMSE'], index=['1 Hour', '6 Hours', '24 Hours'])
-
-# Plot the matrix as a heatmap
-plt.figure(figsize=(8, 6))
-sns.heatmap(metrics_df, annot=True, fmt='.4f', cmap='coolwarm', cbar=True)
-plt.title('Model Evaluation Metrics (MAE, MSE, RMSE) - XGBoost')
-plt.tight_layout()
-plt.savefig('metrics_heatmap (XGBoost).png')
-plt.show()
-
-# Optionally print the results to the console
 print(metrics_df)
