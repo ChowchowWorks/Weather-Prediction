@@ -5,6 +5,7 @@ import keras as k
 from keras import Sequential
 from keras import layers
 
+
 #### Keras LSTM Model #####    
 
 class kerasLSTM(Sequential):
@@ -56,9 +57,9 @@ for i in forecast:
     # Keras LSTM
     nn = buildKerasLstm(X_train1.shape,1, 'rmsprop', 'mse', 'mae')
     history = nn.fit(X_train1, y_train1, 32, 10, validation_split=0.2)
-    plt.plot(range(len(history.history['loss'])), history.history['loss'])
-    plt.show()
-    plt.close()
+    #plt.plot(range(len(history.history['loss'])), history.history['loss'])
+    #plt.show()
+    #plt.close()
 
     # evaluate test data
     X_test1, y_test1 = h.create_windows(np.hstack((h.standardizer(X_test), np.reshape(y_test, (y_test.shape[0], 1)))), n_steps, forecast_steps)
