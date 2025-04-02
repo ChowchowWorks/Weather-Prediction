@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import csv
 from xgboost import XGBRegressor
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import train_test_split
 
@@ -35,10 +36,6 @@ def standardizer(X):
     sdv = np.std(X, axis=0)
     return (X - mean) / sdv
 
-def addBias(X):
-    bias = np.ones((X.shape[0], 1))
-    return np.hstack((bias, X))
-
 def create_windows(data, n_steps, forecast_steps):
     X, y = [], []
     for i in range(n_steps, len(data) - forecast_steps):
@@ -65,10 +62,27 @@ X = standardizer(X)
 # Train-test split
 X_train, X_test, y_train, y_test = trainTest(X, y)
 
-# Set number of past time steps for prediction
-n_steps = 24
+# Define SARIMA parameters for each predictor
+sarima_params = {
+    0: ((1,0,1), (1,0,1,24)),  # Temperature
+    1: ((2,0,1), (0,0,0,24)),  # Wind Speed
+    2: ((0,0,0), (0,0,0,24)),  # Mean Sea-Level Pressure
+    3: ((1,0,1), (1,0,1,24)),  # Solar Radiation
+    4: ((1,0,1), (1,0,1,24)),  # Thermal Radiation
+    5: ((2,1,1), (1,1,1,24)),  # Total Cloud Cover
+}
 
-# Create windows for different forecast horizons
+# Forecast features using SARIMA
+predicted_X_test = np.zeros_like(X_test)
+for i in range(X.shape[1]):
+    order, seasonal_order = sarima_params[i]
+    model = SARIMAX(X_train[:, i], order=order, seasonal_order=seasonal_order)
+    model_fit = model.fit(disp=False)
+    predicted_X_test[:, i] = model_fit.forecast(steps=len(X_test))
+
+# Create windows using SARIMA-forecasted features
+n_steps = 24
+X_test = predicted_X_test
 X_train_1h, y_train_1h = create_windows(np.hstack((X_train, y_train.reshape(-1,1))), n_steps, 1)
 X_test_1h, y_test_1h = create_windows(np.hstack((X_test, y_test.reshape(-1,1))), n_steps, 1)
 
