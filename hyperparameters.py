@@ -126,7 +126,7 @@ def find_best_learning_rate_cv(X_train, y_train, n_splits=5, label=""):
 ####### EVALUATE BEST ESTIMATOR #######
 
 def find_best_estimators_cv(X_train, y_train, n_splits=5, label=""):
-    estimators_values = [50, 100, 150, 200, 250, 300, 350, 400]      # Define a range of n_estimators to test
+    estimators_values = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]      # Define a range of n_estimators to test
     mean_mae_scores = []
 
     tscv = TimeSeriesSplit(n_splits=n_splits)
