@@ -125,7 +125,7 @@ def find_best_learning_rate_cv(X_train, y_train, n_splits=5, label=""):
 ####### EVALUATE BEST ESTIMATOR #######
 
 def find_best_estimators_cv(X_train, y_train, n_splits=5, label=""):
-    estimators_values = [50, 100, 150, 200, 250, 300, 350, 400]      # Define a range of n_estimators to test
+    estimators_values = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]      # Define a range of n_estimators to test
     mean_mae_scores = []
 
     tscv = TimeSeriesSplit(n_splits=n_splits)
@@ -228,44 +228,32 @@ def grid_search_xgb(X_train, y_train, param_grid, n_splits=5, label=""):
 
 ####### BAYESIAN OPTIMISATION TO FIND BEST PARAMETERS #######
 
-def bayesian_optimization_xgb(X_train, y_train, label="Forecast"):
-    """Optimize XGBoost hyperparameters using Optuna for a specific dataset, using MAE."""
-    
-    def objective(trial):
-        params = {
-            "n_estimators": trial.suggest_int("n_estimators", 50, 500),
-            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
-            "max_depth": trial.suggest_int("max_depth", 3, 12),
-            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
-            "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
-            "max_delta_step": trial.suggest_int("max_delta_step", 0, 10),
-            "reg_lambda": trial.suggest_float("reg_lambda", 0.01, 10.0),
-            "reg_alpha": trial.suggest_float("reg_alpha", 0.01, 10.0),
-            "random_state": 42
-        }
+def objective(trial):
+    params = {
+        'n_estimators': trial.suggest_int('n_estimators', 100, 500),
+        'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.3),
+        'max_depth': trial.suggest_int('max_depth', 3, 10),
+        'subsample': trial.suggest_uniform('subsample', 0.6, 1.0),
+        'colsample_bytree': trial.suggest_uniform('colsample_bytree', 0.6, 1.0)
+    }
 
-        model = XGBRegressor(objective="reg:absoluteerror", **params)  # MAE instead of MSE
-        score = cross_val_score(model, X_train, y_train, cv=3, scoring="neg_mean_absolute_error", n_jobs=-1)
-        
-        return score.mean()  # Maximizing -MAE (lower MAE is better)
+    model = XGBRegressor(objective='reg:squarederror', **params, random_state=42)
+    model.fit(X_train, y_train)
 
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=30)
-    
-    print(f"Best Hyperparameters for {label}:")
-    print(study.best_params)
-    
-    return study.best_params  # Return best hyperparameters
+    Y_pred = model.predict(X_test)
+    return mean_absolute_error(y_test, Y_pred)
 
-# Running Bayesian Optimization on 1-hour forecast data
-print("Tuning hyperparameters for 1-hour forecast...")
-best_params_1h = bayesian_optimization_xgb(X_train_1h, y_train_1h, label="1-hour")
+study = optuna.create_study(direction='minimize')
+study.optimize(objective, n_trials=20)
 
-# Running Bayesian Optimization on 6-hour forecast data
-print("Tuning hyperparameters for 6-hour forecast...")
-best_params_6h = bayesian_optimization_xgb(X_train_6h, y_train_6h, label="6-hour")
+print("Best parameters:", study.best_params)
 
-# Running Bayesian Optimization on 24-hour forecast data
-print("Tuning hyperparameters for 24-hour forecast...")
-best_params_24h = bayesian_optimization_xgb(X_train_24h, y_train_24h, label="24-hour")
+best_xgb = XGBRegressor(objective='reg:squarederror', **study.best_params, random_state=42)
+best_xgb.fit(X_train, y_train)
+
+Y_pred_xgb = best_xgb.predict(X_test)
+
+mae_xgb = mean_absolute_error(y_test, Y_pred_xgb)
+mse_xgb = mean_squared_error(y_test, Y_pred_xgb)
+
+print(f"Tuned XGBoost - MAE: {mae_xgb}, MSE: {mse_xgb}")
