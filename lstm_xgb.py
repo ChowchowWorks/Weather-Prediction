@@ -41,7 +41,7 @@ X_test_6hr, y_test_6hr = h.splitData(features_6hr_test)
 X_test_24hr , y_test_24hr = h.splitData(features_24hr_test)
 
 class xgbmodel():
-    def __init__(self, n_estimators=100, max_depth=6, learning_rate=0.1, subsample=1.0, colsample_bytree=1.0, reg_alpha=0, reg_lambda=1):
+    def __init__(self, n_estimators=100, max_depth=6, learning_rate=0.1, subsample=1.0, colsample_bytree=1.0, min_child_weight = 1, max_delta_step = 1, reg_alpha=0, reg_lambda=1):
         self.n_estimators = None
         self.max_depth = None
         self.learning_rate = None
@@ -49,6 +49,7 @@ class xgbmodel():
         self.colsample_bytree = None
         self.reg_alpha = None
         self.reg_lambda = None
+        self.min_child_weight = self.max_delta_step = None
         self.model = None
 
     def build_model(self):
@@ -58,6 +59,8 @@ class xgbmodel():
             learning_rate = self.learning_rate,
             subsample = self.subsample,
             colsample_bytree = self.colsample_bytree,
+            min_child_weight = self.min_child_weight,
+            max_delta_step = self.max_delta_step,
             reg_alpha = self.reg_alpha,
             reg_lambda = self.reg_lambda
         )
@@ -81,19 +84,23 @@ class xgbmodel():
         self.learning_rate = d['learning_rate']
         self.subsample = d['subsample']
         self.colsample_bytree = d['colsample_bytree']
+        self.min_child_weight = d['min_child_weight']
+        self.max_delta_step = d['max_delta_step']
         self.reg_alpha = d['reg_alpha']
         self.reg_lambda = d['reg_lambda']
 
 
 
-def objective(trial):
+def objective_1hr(trial):
     # Suggest hyperparameters
     params = {
-        "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=100),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=50),
         "max_depth": trial.suggest_int("max_depth", 3, 12),
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
         "subsample": trial.suggest_float("subsample", 0.5, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+        "min_child_weight": trial.suggest_int("min_child_weight", 1, 10, step = 1),
+        "max_delta_step" : trial.suggest_int("max_delta_step", 0 , 10, step = 1),
         "reg_alpha": trial.suggest_float("reg_alpha", 1e-5, 10, log=True),
         "reg_lambda": trial.suggest_float("reg_lambda", 1e-5, 10, log=True)
     }
@@ -107,21 +114,83 @@ def objective(trial):
     return score.mean()  # Optuna maximizes this (since MAE is negative)
 
 # Run optimization
-study = optuna.create_study(direction="maximize")  # Maximize negative MAE
-study.optimize(objective, n_trials=30)
+study_1hr = optuna.create_study(direction="maximize")  # Maximize negative MAE
+study_1hr.optimize(objective_1hr, n_trials=30)
 
-best_params = study.best_params
+best_params_1hr = study_1hr.best_params
 
 # Best hyperparameters
-print("Best hyperparameters:", study.best_params)
+print("Best hyperparameters:", study_1hr.best_params)
 
+def objective_6hr(trial):
+    # Suggest hyperparameters
+    params = {
+        "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=50),
+        "max_depth": trial.suggest_int("max_depth", 3, 12),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+        "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+        "min_child_weight": trial.suggest_int("min_child_weight", 1, 10, step = 1),
+        "max_delta_step" : trial.suggest_int("max_delta_step", 0 , 10, step = 1),
+        "reg_alpha": trial.suggest_float("reg_alpha", 1e-5, 10, log=True),
+        "reg_lambda": trial.suggest_float("reg_lambda", 1e-5, 10, log=True)
+    }
+    
+    # Train XGBoost model
+    model = xgbmodel(**params)  
+    
+    # Use cross-validation to evaluate the model
+    score = cross_val_score(model.build_model(), X_train_1hr, y_train_1hr, cv=5, scoring='neg_mean_absolute_error')
+    
+    return score.mean()  # Optuna maximizes this (since MAE is negative)
+
+# Run optimization
+study_6hr = optuna.create_study(direction="maximize")  # Maximize negative MAE
+study_6hr.optimize(objective_6hr, n_trials=30)
+
+best_params_6hr = study_6hr.best_params
+
+# Best hyperparameters
+print("Best hyperparameters:", study_6hr.best_params)
+
+
+def objective_24hr(trial):
+    # Suggest hyperparameters
+    params = {
+        "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=50),
+        "max_depth": trial.suggest_int("max_depth", 3, 12),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+        "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+        "min_child_weight": trial.suggest_int("min_child_weight", 1, 10, step = 1),
+        "max_delta_step" : trial.suggest_int("max_delta_step", 0 , 10, step = 1),
+        "reg_alpha": trial.suggest_float("reg_alpha", 1e-5, 10, log=True),
+        "reg_lambda": trial.suggest_float("reg_lambda", 1e-5, 10, log=True)
+    }
+    
+    # Train XGBoost model
+    model = xgbmodel(**params)  
+    
+    # Use cross-validation to evaluate the model
+    score = cross_val_score(model.build_model(), X_train_1hr, y_train_1hr, cv=5, scoring='neg_mean_absolute_error')
+    
+    return score.mean()  # Optuna maximizes this (since MAE is negative)
+
+# Run optimization
+study_24hr = optuna.create_study(direction="maximize")  # Maximize negative MAE
+study_24hr.optimize(objective_24hr, n_trials=30)
+
+best_params_24hr = study_24hr.best_params
+
+# Best hyperparameters
+print("Best hyperparameters:", study_24hr.best_params)
 xg_1hr = xgbmodel()
 xg_6hr = xgbmodel()
 xg_24hr = xgbmodel()
 
-xg_1hr.update_params(best_params)
-xg_6hr.update_params(best_params)
-xg_24hr.update_params(best_params)
+xg_1hr.update_params(best_params_1hr)
+xg_6hr.update_params(best_params_6hr)
+xg_24hr.update_params(best_params_24hr)
 
 xg_1hr.build_model()
 xg_6hr.build_model()

@@ -1,0 +1,467 @@
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+
+df = pd.read_csv("weather_data.csv")
+
+# adds a column of bias
+def addBias_df(dataframe):
+  dataframe = dataframe.assign(bias = 1)
+  # move bias to the first column
+  dataframe = dataframe[['bias'] + [col for col in dataframe.columns if col != 'bias']]
+  return dataframe
+
+# removes outliers from humidity column only
+def removeOutliers(dataframe):
+  dataframe = dataframe[dataframe['relative_humidity'] <= 1]
+  return dataframe
+
+# splits the data into X values and Y values (returns arrays)
+def splitDataIntoArray(dataframe):
+  data = dataframe.to_numpy()
+  X = data[:, :-1]
+  y = data[:, -1]
+  return X, y
+
+# converts array to DF
+def toDF(array):
+  df = pd.DataFrame(array)
+  return df
+
+# this is the standardisation scaler
+scaler = StandardScaler()
+
+# creating windows for prediction
+def create_windows(data, n_steps, forecast_steps):
+    X, y = [], []
+    for i in range(n_steps, len(data) - forecast_steps):
+        X.append(data[i - n_steps:i, :-1])  # Use N previous time points as features
+        y.append(data[i + forecast_steps - 1, -1])  # Predict target after forecast_steps
+    return np.array(X), np.array(y)
+
+
+# split data into X values and y values
+X, y = splitDataIntoArray(df)
+# split into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle = False)
+print(X_train.shape)
+
+# standardise X_train
+X_train = np.array(scaler.fit_transform(X_train))
+#X_train = np.hstack((X_train, Day_or_Night[:X_train.shape[0]]))
+# standardise X_test
+X_test = np.array(scaler.transform(X_test))
+#X_test = np.hstack((X_test, Day_or_Night[X_train.shape[0]:]))
+
+# create windows for training data
+# N is the number of steps the model will backtrack to predict new data
+N = 24
+
+# combine X_train and y_train
+y_train = y_train.reshape(y_train.shape[0], 1)
+trainingData = np.hstack((X_train, y_train))
+
+# create training data
+X_train_1, y_train_1 = create_windows(trainingData, N, 1)
+X_train_6, y_train_6 = create_windows(trainingData, N, 6)
+X_train_24, y_train_24 = create_windows(trainingData, N, 24)
+
+# create windows for testing data
+# combine X_test and y_test
+y_test = y_test.reshape(y_test.shape[0], 1)
+testingData = np.hstack((X_test, y_test))
+
+X_test_1, y_test_1 = create_windows(testingData, N, 1)
+X_test_6, y_test_6 = create_windows(testingData, N, 6)
+X_test_24, y_test_24 = create_windows(testingData, N, 24)
+
+from sklearn.base import BaseEstimator, RegressorMixin
+import keras
+from keras import Sequential
+from keras import layers
+import keras_tuner as kt
+from keras import callbacks
+from keras import optimizers
+
+early_stopping = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+class kerasLSTM(BaseEstimator, RegressorMixin):
+    def __init__(self, units, batch_size, epochs, learning_rate = 0.01, dropout = 0.2):
+        self.units = units
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.model = None
+        self.input_shape = None
+        self.learning_rate = learning_rate
+        self.dropout = dropout
+
+    def build_model(self, input_shape):
+        self.input_shape = input_shape
+        model = Sequential([
+            layers.LSTM(self.units, return_sequences=True, input_shape=input_shape),
+            layers.Dropout(self.dropout),
+            layers.LSTM(self.units, return_sequences=False),
+            layers.Dense(1, activation = 'sigmoid')
+        ])
+        model.compile(loss='mse', optimizer= optimizers.RMSprop(learning_rate = self.learning_rate), metrics = ['mae'])
+        return model
+
+    def fit(self, X, y):
+        self.model = self.build_model(X.shape[1:])
+        self.model.fit(X, y, batch_size=self.batch_size, epochs=self.epochs, validation_split= 0.2, callbacks = [early_stopping], verbose=1)
+        return self
+
+    def predict(self, X):
+        return self.model.predict(X)
+
+    def update_params(self, units, batch_size, epochs, learning_rate):
+        self.units = units
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.learning_rate = learning_rate
+
+def objective(trial):
+    # Sample hyperparameters
+    units = trial.suggest_int('units', 1, 50, step=10)
+    batch_size = trial.suggest_categorical('batch_size', [16, 32, 64])
+    epochs = trial.suggest_int('epochs', 10, 50, step=5)
+    learning_rate = trial.suggest_float('learning_rate', 1e-4, 1e-2, log=True)
+    dropout = trial.suggest_float('dropout', 0.0, 0.5)
+
+    # Initialize LSTM model
+    lstm_model = kerasLSTM(units=units, batch_size=batch_size, epochs=epochs, learning_rate=learning_rate, dropout=dropout)
+
+    # Fit model
+    lstm_model.fit(X_train_1, y_train_1)
+
+    # Evaluate on validation set
+    y_pred = lstm_model.predict(X_test_1)
+    val_loss = np.mean(np.abs(y_test_1 - y_pred))  # Mean Absolute Error (MAE)
+
+    return val_loss  # Optuna minimizes this
+
+# fit the model (1hr, 6hr, 24hr)
+nn_1hr = kerasLSTM(units = 31, batch_size = 16, epochs = 40, learning_rate=0.0009375368727007461, dropout=0.002827550607249929)
+nn_1hr.fit(X_train_1, y_train_1)
+
+mse_1hr, mae_1hr = nn_1hr.model.evaluate(X_test_1, y_test_1)
+print("prediction results:")
+
+print("1hr:")
+print("mse:",round(mse_1hr,4))
+print("mae:",round(mae_1hr,4))
+
+
+import numpy as np
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+sarima_params = {
+    0: ((1,0,1), (1,0,1,24)),  # Temperature
+    1: ((2,0,1), (0,0,0,24)),  # Wind Speed
+    2: ((0,0,0), (0,0,0,24)),  # Mean Sea-Level Pressure
+    3: ((1,0,1), (1,0,1,24)),  # Solar Radiation
+    4: ((1,0,1), (1,0,1,24)),  # Thermal Radiation
+    5: ((2,1,1), (1,1,1,24)),  # Total Cloud Cover
+}
+
+### --- SARIMA FORECASTING FUNCTION ---
+def forecast_sarima(model_params, past_data, forecast_horizon):
+    """Predicts the next `forecast_horizon` steps for a single feature using simplified SARIMAX."""
+    p, d, q = model_params[0]  # Non-seasonal orders
+    P, D, Q, s = model_params[1]  # Seasonal orders
+
+    # Create and fit the SARIMAX model with minimal parameters
+    model = SARIMAX(past_data, order=(p, d, q), seasonal_order=(P, D, Q, s))
+    results = model.fit(disp=False)  # Fit the model
+
+    # Forecast the next 'forecast_horizon' steps
+    pred = results.forecast(steps=forecast_horizon)
+    return np.array(pred)
+
+### --- EXTEND TEST DATA USING SARIMA ---
+def extend_test_data(X_test, forecast_horizon, sarima_params, N):
+    """
+    Uses SARIMA to predict missing `forecast_horizon - 1` time steps for each feature.
+    Appends predictions to `X_test` without removing old rows.
+    """
+    X_test_extended = []
+
+    for i in range(X_test.shape[0]):  # Iterate over each sample
+        past_data = X_test[i, :, :]  # Extract past N data points
+        new_predictions = []
+
+        for feature_idx in range(X_test.shape[2]):  # Iterate over each feature
+            past_feature_data = past_data[:, feature_idx]  # Extract time series for a single feature
+            params = sarima_params[feature_idx]  # Get SARIMA parameters for this feature
+            sarima_forecast = forecast_sarima(params, past_feature_data, forecast_horizon - 1)  # Predict missing values
+            new_predictions.append(sarima_forecast)
+
+        new_predictions = np.array(new_predictions).T  # Shape: (forecast_horizon-1, num_features)
+        extended_sequence = np.vstack([past_data, new_predictions])  # Append SARIMA predictions
+
+        X_test_extended.append(extended_sequence)
+
+    return np.array(X_test_extended)
+
+### --- ADJUST TARGET VALUES TO MATCH EXTENDED X TEST SET ---
+def adjust_y_labels(testingData, N, forecast_horizon):
+    """
+    Recomputes y_test values to match SARIMA-extended X_test data.
+    Instead of using forecast_horizon, we now predict only 1 step ahead.
+    """
+    y_adjusted = []
+    for i in range(N + forecast_horizon - 1, len(testingData) - 1):
+        y_adjusted.append(testingData[i + 1, -1])  # Predicting 1 step ahead
+    return np.array(y_adjusted)
+
+### --- CREATE WINDOWS FUNCTION ---
+def create_windows(data, n_steps, forecast_steps):
+    X, y = [], []
+    for i in range(n_steps, len(data) - forecast_steps):
+        X.append(data[i - n_steps:i, :-1])  # Use N previous time points as features
+        y.append(data[i + forecast_steps - 1, -1])  # Predict target after forecast_steps
+    return np.array(X), np.array(y)
+
+# Set N for the number of past time steps you want to use (168 for testing)
+N_test = 168
+
+# Combine X_test and y_test for testing
+y_test = y_test.reshape(y_test.shape[0], 1)
+testingData = np.hstack((X_test, y_test))
+
+# Create testing data with N = 168 (for testing phase)
+X_test_1, y_test_1 = create_windows(testingData, N_test, 1)
+X_test_6, y_test_6 = create_windows(testingData, N_test, 6)
+
+### --- APPLY SARIMA + LSTM ---
+
+# Extend X_test using SARIMA predictions
+X_test_6_extended = extend_test_data(X_test_6, forecast_horizon=6, sarima_params=sarima_params, N=N)
+
+# Compute new y_test labels to align with SARIMA-extended inputs
+y_test_6_adjusted = adjust_y_labels(testingData, N, forecast_horizon=6)
+
+# Run LSTM model on the new extended inputs
+y_pred_6 = nn_1hr.predict(X_test_6_extended)
+
+# Evaluate model performance with the adjusted y-values
+mse_6, mae_6 = nn_1hr.model.evaluate(X_test_6_extended, y_test_6_adjusted)
+
+# Print performance metrics
+print(f"6-hour forecast - MSE: {mse_6}, MAE: {mae_6}")
+print(f"24-hour forecast - MSE: {mse_24}, MAE: {mae_24}")
+
+
+import numpy as np
+from statsmodels.tsa.arima.model import ARIMA
+
+# ARIMA Parameters for each feature (p, d, q)
+arima_params = {
+    0: (1, 0, 1),  # Temperature
+    1: (2, 0, 1),  # Wind Speed
+    2: (0, 0, 0),  # Mean Sea-Level Pressure
+    3: (1, 0, 1),  # Solar Radiation
+    4: (1, 0, 1),  # Thermal Radiation
+    5: (2, 1, 1),  # Total Cloud Cover
+}
+
+# --- ARIMA FORECASTING FUNCTION ---
+def forecast_arima(model_params, past_data, forecast_horizon):
+    """Predicts the next `forecast_horizon` steps for a single feature using ARIMA."""
+    p, d, q = model_params  # ARIMA parameters (p, d, q)
+
+    model = ARIMA(past_data, order=(p, d, q))
+    results = model.fit()  # Fit the ARIMA model
+
+    pred = results.forecast(steps=forecast_horizon)  # Forecast the next steps
+    return np.array(pred)
+
+# --- EXTEND TEST DATA USING ARIMA ---
+def extend_test_data_arima(X_test, forecast_horizon, arima_params):
+    """
+    Uses ARIMA to predict missing `forecast_horizon - 1` time steps for each feature.
+    Appends predictions to `X_test` without removing old rows.
+    """
+    X_test_extended = []
+
+    for i in range(X_test.shape[0]):  # Iterate over each sample
+        past_data = X_test[i, :, :]  # Extract past N data points
+        new_predictions = []
+
+        for feature_idx in range(X_test.shape[2]):  # Iterate over each feature
+            past_feature_data = past_data[:, feature_idx]  # Extract time series for a single feature
+            params = arima_params[feature_idx]  # Get ARIMA parameters for this feature
+            arima_forecast = forecast_arima(params, past_feature_data, forecast_horizon - 1)  # Predict missing values
+            new_predictions.append(arima_forecast)
+
+        new_predictions = np.array(new_predictions).T  # Shape: (forecast_horizon-1, num_features)
+        extended_sequence = np.vstack([past_data, new_predictions])  # Append ARIMA predictions
+
+        X_test_extended.append(extended_sequence)
+
+    return np.array(X_test_extended)
+
+# --- ADJUST TARGET VALUES TO MATCH EXTENDED X TEST SET ---
+def adjust_y_labels(testingData, N, forecast_horizon):
+    """
+    Recomputes y_test values to match ARIMA-extended X_test data.
+    Instead of using forecast_horizon, we now predict only 1 step ahead.
+    """
+    y_adjusted = []
+    for i in range(N + forecast_horizon - 1, len(testingData) - 1):
+        y_adjusted.append(testingData[i + 1, -1])  # Predicting 1 step ahead
+    return np.array(y_adjusted)
+
+# --- CREATE WINDOWS FUNCTION ---
+def create_windows(data, n_steps, forecast_steps):
+    """Creates input-output windows for time-series data."""
+    X, y = [], []
+    for i in range(n_steps, len(data) - forecast_steps):
+        X.append(data[i - n_steps:i, :-1])  # Use N previous time points as features
+        y.append(data[i + forecast_steps - 1, -1])  # Predict target after forecast_steps
+    return np.array(X), np.array(y)
+
+# --- SETUP FOR TRAINING AND TESTING DATA ---
+
+N_test = 168  # Updated N for testing with ARIMA-based extension
+
+# Create windows for testing data (with N_test = 168 for testing)
+y_test = y_test.reshape(y_test.shape[0], 1)
+testingData = np.hstack((X_test, y_test))
+
+X_test_1, y_test_1 = create_windows(testingData, N_test, 1)
+X_test_6, y_test_6 = create_windows(testingData, N_test, 6)
+
+# --- APPLY ARIMA + LSTM ---
+
+# Extend X_test using ARIMA predictions
+X_test_6_extended = extend_test_data_arima(X_test_6, forecast_horizon=6, arima_params=arima_params)
+
+# Compute new y_test labels to align with ARIMA-extended inputs
+y_test_6_adjusted = adjust_y_labels(testingData, N_test, forecast_horizon=6)
+
+# Run LSTM model on the new extended inputs
+y_pred_6 = nn_1hr.predict(X_test_6_extended)
+
+# Evaluate model performance with the adjusted y-values
+mse_6, mae_6 = nn_1hr.model.evaluate(X_test_6_extended, y_test_6_adjusted)
+
+# Print evaluation results
+print(f"6-hour forecast - MSE: {mse_6}, MAE: {mae_6}")
+
+
+import numpy as np
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# Simplified SARIMA parameters - start with basic models
+sarima_params = {
+    0: ((1,0,0), (1,0,0,24)),  # Temperature - simpler AR structure
+    1: ((1,0,0), (0,0,0,24)),  # Wind Speed - no seasonal component
+    2: ((0,0,0), (0,0,0,24)),  # Mean Sea-Level Pressure - white noise
+    3: ((1,0,0), (1,0,0,24)),  # Solar Radiation - simpler model
+    4: ((1,0,0), (1,0,0,24)),  # Thermal Radiation - simpler model
+    5: ((1,1,0), (1,1,0,24)),  # Total Cloud Cover - simpler differencing
+}
+
+### --- IMPROVED SARIMA FORECASTING FUNCTION ---
+def forecast_sarima(model_params, past_data, forecast_horizon):
+    """Predicts the next forecast_horizon steps with error handling."""
+    p, d, q = model_params[0]  # Non-seasonal orders
+    P, D, Q, s = model_params[1]  # Seasonal orders
+
+    try:
+        # Create and fit the SARIMAX model with simplified settings
+        model = SARIMAX(past_data,
+                       order=(p, d, q),
+                       seasonal_order=(P, D, Q, s),
+                       enforce_stationarity=False,
+                       enforce_invertibility=False)
+
+        # Use a simpler optimization method if needed
+        results = model.fit(disp=False, method='powell')
+
+        # Forecast the next steps
+        pred = results.forecast(steps=forecast_horizon)
+        return np.array(pred)
+
+    except Exception as e:
+        print(f"SARIMA failed for params {model_params}: {str(e)}")
+        # Fallback: return last observed value repeated
+        return np.full(forecast_horizon, past_data[-1])
+
+### --- EXTEND TEST DATA USING SARIMA ---
+def extend_test_data(X_test, forecast_horizon, sarima_params, N):
+    """
+    Uses SARIMA to predict missing `forecast_horizon - 1` time steps for each feature.
+    Appends predictions to `X_test` without removing old rows.
+    """
+    X_test_extended = []
+
+    for i in range(X_test.shape[0]):  # Iterate over each sample
+        past_data = X_test[i, :, :]  # Extract past N data points
+        new_predictions = []
+
+        for feature_idx in range(X_test.shape[2]):  # Iterate over each feature
+            past_feature_data = past_data[:, feature_idx]  # Extract time series for a single feature
+            params = sarima_params[feature_idx]  # Get SARIMA parameters for this feature
+            sarima_forecast = forecast_sarima(params, past_feature_data, forecast_horizon - 1)  # Predict missing values
+            new_predictions.append(sarima_forecast)
+
+        new_predictions = np.array(new_predictions).T  # Shape: (forecast_horizon-1, num_features)
+        extended_sequence = np.vstack([past_data, new_predictions])  # Append SARIMA predictions
+
+        X_test_extended.append(extended_sequence)
+
+    return np.array(X_test_extended)
+
+### --- ADJUST TARGET VALUES TO MATCH EXTENDED X TEST SET ---
+def adjust_y_labels(testingData, N, forecast_horizon):
+    """
+    Recomputes y_test values to match SARIMA-extended X_test data.
+    Instead of using forecast_horizon, we now predict only 1 step ahead.
+    """
+    y_adjusted = []
+    for i in range(N + forecast_horizon - 1, len(testingData) - 1):
+        y_adjusted.append(testingData[i + 1, -1])  # Predicting 1 step ahead
+    return np.array(y_adjusted)
+
+### --- CREATE WINDOWS FUNCTION ---
+def create_windows(data, n_steps, forecast_steps):
+    X, y = [], []
+    for i in range(n_steps, len(data) - forecast_steps):
+        X.append(data[i - n_steps:i, :-1])  # Use N previous time points as features
+        y.append(data[i + forecast_steps - 1, -1])  # Predict target after forecast_steps
+    return np.array(X), np.array(y)
+
+# Set N for the number of past time steps you want to use (168 for testing)
+N_test = 168
+
+# Combine X_test and y_test for testing
+y_test = y_test.reshape(y_test.shape[0], 1)
+testingData = np.hstack((X_test, y_test))
+
+# Create testing data with N = 168 (for testing phase)
+X_test_1, y_test_1 = create_windows(testingData, N_test, 1)
+X_test_6, y_test_6 = create_windows(testingData, N_test, 6)
+
+### --- APPLY SARIMA + LSTM ---
+
+# Extend X_test using SARIMA predictions
+X_test_6_extended = extend_test_data(X_test_6, forecast_horizon=6, sarima_params=sarima_params, N=N)
+
+# Compute new y_test labels to align with SARIMA-extended inputs
+y_test_6_adjusted = adjust_y_labels(testingData, N, forecast_horizon=6)
+
+# Run LSTM model on the new extended inputs
+y_pred_6 = nn_1hr.predict(X_test_6_extended)
+
+# Evaluate model performance with the adjusted y-values
+mse_6, mae_6 = nn_1hr.model.evaluate(X_test_6_extended, y_test_6_adjusted)
+
+# Print performance metrics
+print(f"6-hour forecast - MSE: {mse_6}, MAE: {mae_6}")

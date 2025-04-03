@@ -8,8 +8,7 @@ from joblib import Parallel, delayed
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit, train_test_split, cross_val_score
-from skopt.space import Integer, Real
-from skopt import BayesSearchCV
+
 import optuna
 import helper as h
 
