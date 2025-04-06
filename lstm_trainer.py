@@ -128,13 +128,13 @@ class kerasLSTM(BaseEstimator, RegressorMixin):
     def predict(self, X):
         return self.model.predict(X)
 
-    def update_params(self, units_1, units_2 ,batch_size, epochs, learning_rate, dropout):
-        self.units_1 = units_1
-        self.units_2 = units_2
-        self.batch_size = batch_size
-        self.epochs = epochs
-        self.learning_rate = learning_rate
-        self.dropout = dropout
+    def update_params(self, d):
+        self.units_1 = d['layer_1_units']
+        self.units_2 = d['layer_2_units']
+        self.batch_size = d['batch_size']
+        self.epochs = d['epochs']
+        self.learning_rate = d['learning_rate']
+        self.dropout = d['dropout']
 
 def objective_1(trial):
     # Sample hyperparameters
@@ -164,16 +164,20 @@ def objective_1(trial):
 import optuna
 
 # Run Bayesian Optimization with Optuna
-study_1 = optuna.create_study(direction='minimize')  # Minimize validation loss
-study_1.optimize(objective_1, n_trials=10)
+#study_1 = optuna.create_study(direction='minimize')  # Minimize validation loss
+#study_1.optimize(objective_1, n_trials=10)
 
 # Print best hyperparameters
-print("Best LSTM parameters:", study_1.best_params)
+#print("Best LSTM parameters:", study_1.best_params)
 
-best_params_1 = study_1.best_params
+#best_params_1 = study_1.best_params
+
+best_params_1 = {'layer_1_units': 31, 'layer_2_units': 31, 'batch_size': 16, 'epochs': 40, 'learning_rate': 0.0009375368727007461, 'dropout': 0.002827550607249929}
+best_params_2 = {'layer_1_units': 31, 'layer_2_units': 41, 'batch_size': 64, 'epochs': 50, 'learning_rate': 0.00038227852716709443, 'dropout': 0.27680778568404185}
+best_params_3 = {'layer_1_units': 41, 'layer_2_units': 31, 'batch_size': 32, 'epochs': 15, 'learning_rate': 0.00012786574678390702, 'dropout': 0.23290496705739178}
 
 nn_1hr = kerasLSTM(31, 31, 32, 10,)
-nn_1hr.update_params(best_params_1['layer_1_units'], best_params_1['layer_2_units'], best_params_1['batch_size'], best_params_1['epochs'], best_params_1['learning_rate'], best_params_1['dropout'])
+nn_1hr.update_params(best_params_1)
 nn_1hr.fit(X_train_1, y_train_1)
 
 nn_1hr.model.save('nn_1hr.h5')
@@ -204,18 +208,18 @@ def objective_6(trial):
     return val_loss  # Optuna minimizes this
 
 # Run Bayesian Optimization with Optuna
-study_6 = optuna.create_study(direction='minimize')  # Minimize validation loss
-study_6.optimize(objective_6, n_trials=10)
+#study_6 = optuna.create_study(direction='minimize')  # Minimize validation loss
+#study_6.optimize(objective_6, n_trials=10)
 
 # Print best hyperparameters
-print("Best LSTM parameters:", study_6.best_params)
+#print("Best LSTM parameters:", study_6.best_params)
 
-best_params_6 = study_6.best_params
+#best_params_6 = study_6.best_params
 
 nn_6hr = kerasLSTM(31, 31, 32, 10,)
-nn_6hr.update_params(best_params_6['layer_1_units'], best_params_6['layer_2_units'], best_params_6['batch_size'], best_params_6['epochs'], best_params_6['learning_rate'], best_params_6['dropout'])
-nn_6hr.fit(X_train_6, y_train_6)
 
+nn_6hr.fit(X_train_6, y_train_6)
+nn_6hr.update_params(best_params_2)
 nn_6hr.model.save('nn_6hr.h5')
 
 def objective_24(trial):
@@ -244,18 +248,18 @@ def objective_24(trial):
     return val_loss  # Optuna minimizes this
 
 # Run Bayesian Optimization with Optuna
-study_24 = optuna.create_study(direction='minimize')  # Minimize validation loss
-study_24.optimize(objective_24, n_trials=10)
+#study_24 = optuna.create_study(direction='minimize')  # Minimize validation loss
+#study_24.optimize(objective_24, n_trials=10)
 
 # Print best hyperparameters
-print("Best LSTM parameters:", study_24.best_params)
+#print("Best LSTM parameters:", study_24.best_params)
 
-best_params_24 = study_24.best_params
+#best_params_24 = study_24.best_params
 
 nn_24hr = kerasLSTM(31, 31, 32, 10,)
-nn_24hr.update_params(best_params_24['layer_1_units'], best_params_24['layer_2_units'], best_params_24['batch_size'], best_params_24['epochs'], best_params_24['learning_rate'], best_params_24['dropout'])
-nn_24hr.fit(X_train_24, y_train_24)
 
+nn_24hr.fit(X_train_24, y_train_24)
+nn_24hr.update_params(best_params_3)
 nn_24hr.model.save('nn_24hr.h5')
 
 mse_1hr, mae_1hr = nn_1hr.model.evaluate(X_test_1, y_test_1)
@@ -297,7 +301,7 @@ class MyModel(Model):
             new_layer.set_weights(old_layer.get_weights())
 
 no_dense_1hr = MyModel(nn_1hr, X_train_1.shape)
-no_dense_1hr.save('no_dense_1hr')
+no_dense_1hr.save('no_dense_1hr.h5')
 no_dense_6hr = MyModel(nn_6hr, X_train_6.shape)
 no_dense_6hr.save('no_dense_hr.h5')
 no_dense_24hr = MyModel(nn_24hr, X_train_24.shape)

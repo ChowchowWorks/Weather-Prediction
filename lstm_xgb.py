@@ -197,8 +197,11 @@ xg_6hr.build_model()
 xg_24hr.build_model()
 
 xg_1hr.model.fit(X_train_1hr, y_train_1hr)
+xg_1hr.model.save_model('nnxg_1hr.model')
 xg_6hr.model.fit(X_train_6hr, y_train_6hr)
+xg_6hr.model.save_model('nnxg_6hr.model')
 xg_24hr.model.fit(X_train_24hr, y_train_24hr)
+xg_24hr.model.save_model('nnxg_24hr.model')
 
 # Train models for different time horizons and evaluate
 predictions_1hr, mae_1hr, mse_1hr, rmse_1hr = xg_1hr.predict(X_test_1hr, y_test_1hr)
