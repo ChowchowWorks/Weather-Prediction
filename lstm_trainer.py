@@ -136,7 +136,7 @@ class kerasLSTM(BaseEstimator, RegressorMixin):
         self.learning_rate = learning_rate
         self.dropout = dropout
 
-def objective(trial):
+def objective_1(trial):
     # Sample hyperparameters
     units_1 = trial.suggest_int('layer_1_units', 1, 50, step=10)
     units_2 = trial.suggest_int('layer_2_units', 1, 50, step=10)
@@ -164,24 +164,92 @@ def objective(trial):
 import optuna
 
 # Run Bayesian Optimization with Optuna
-#study = optuna.create_study(direction='minimize')  # Minimize validation loss
-#study.optimize(objective, n_trials=30)
+study_1 = optuna.create_study(direction='minimize')  # Minimize validation loss
+study_1.optimize(objective_1, n_trials=30)
 
 # Print best hyperparameters
-#print("Best LSTM parameters:", study.best_params)
+print("Best LSTM parameters:", study_1.best_params)
 
-best_params = {'layer_1_units': 31, 'layer_2_units': 31, 'batch_size': 16, 'epochs': 40, 'learning_rate': 0.0009375368727007461, 'dropout': 0.002827550607249929}
+best_params_1 = study_1.best_params
 
 nn_1hr = kerasLSTM(31, 31, 32, 10,)
-nn_1hr.update_params(best_params['layer_1_units'], best_params['layer_2_units'], best_params['batch_size'], best_params['epochs'], best_params['learning_rate'], best_params['dropout'])
+nn_1hr.update_params(best_params_1['layer_1_units'], best_params_1['layer_2_units'], best_params_1['batch_size'], best_params_1['epochs'], best_params_1['learning_rate'], best_params_1['dropout'])
 nn_1hr.fit(X_train_1, y_train_1)
 
+def objective_6(trial):
+    # Sample hyperparameters
+    units_1 = trial.suggest_int('layer_1_units', 1, 50, step=10)
+    units_2 = trial.suggest_int('layer_2_units', 1, 50, step=10)
+    batch_size = trial.suggest_categorical('batch_size', [16, 32, 64])
+    epochs = trial.suggest_int('epochs', 10, 50, step=5)
+    learning_rate = trial.suggest_float('learning_rate', 1e-4, 1e-2, log=True)
+    dropout = trial.suggest_float('dropout', 0.0, 0.5)
+    
+    # Initialize LSTM model
+    lstm_model = kerasLSTM(layer_1_units= units_1,
+                           layer_2_units= units_2,
+                           batch_size=batch_size,
+                           epochs=epochs,
+                           learning_rate=learning_rate,
+                           dropout=dropout)
+    
+    # Fit model
+    history = lstm_model.fit(X_train_6, y_train_6)
+    
+    # Get the final validation loss from the training history
+    val_loss = history.history['val_loss'][-1]  # Last epoch's validation loss
+    
+    return val_loss  # Optuna minimizes this
+
+# Run Bayesian Optimization with Optuna
+study_6 = optuna.create_study(direction='minimize')  # Minimize validation loss
+study_6.optimize(objective_6, n_trials=30)
+
+# Print best hyperparameters
+print("Best LSTM parameters:", study_6.best_params)
+
+best_params_6 = study_6.best_params
+
 nn_6hr = kerasLSTM(31, 31, 32, 10,)
-nn_6hr.update_params(best_params['layer_1_units'], best_params['layer_2_units'], best_params['batch_size'], best_params['epochs'], best_params['learning_rate'], best_params['dropout'])
+nn_6hr.update_params(best_params_6['layer_1_units'], best_params_6['layer_2_units'], best_params_6['batch_size'], best_params_6['epochs'], best_params_6['learning_rate'], best_params_6['dropout'])
 nn_6hr.fit(X_train_6, y_train_6)
 
+def objective_24(trial):
+    # Sample hyperparameters
+    units_1 = trial.suggest_int('layer_1_units', 1, 50, step=10)
+    units_2 = trial.suggest_int('layer_2_units', 1, 50, step=10)
+    batch_size = trial.suggest_categorical('batch_size', [16, 32, 64])
+    epochs = trial.suggest_int('epochs', 10, 50, step=5)
+    learning_rate = trial.suggest_float('learning_rate', 1e-4, 1e-2, log=True)
+    dropout = trial.suggest_float('dropout', 0.0, 0.5)
+    
+    # Initialize LSTM model
+    lstm_model = kerasLSTM(layer_1_units= units_1,
+                           layer_2_units= units_2,
+                           batch_size=batch_size,
+                           epochs=epochs,
+                           learning_rate=learning_rate,
+                           dropout=dropout)
+    
+    # Fit model
+    history = lstm_model.fit(X_train_24, y_train_24)
+    
+    # Get the final validation loss from the training history
+    val_loss = history.history['val_loss'][-1]  # Last epoch's validation loss
+    
+    return val_loss  # Optuna minimizes this
+
+# Run Bayesian Optimization with Optuna
+study_24 = optuna.create_study(direction='minimize')  # Minimize validation loss
+study_24.optimize(objective_24, n_trials=30)
+
+# Print best hyperparameters
+print("Best LSTM parameters:", study_24.best_params)
+
+best_params_24 = study_24.best_params
+
 nn_24hr = kerasLSTM(31, 31, 32, 10,)
-nn_24hr.update_params(best_params['layer_1_units'], best_params['layer_2_units'], best_params['batch_size'], best_params['epochs'], best_params['learning_rate'], best_params['dropout'])
+nn_24hr.update_params(best_params_24['layer_1_units'], best_params_24['layer_2_units'], best_params_24['batch_size'], best_params_24['epochs'], best_params_24['learning_rate'], best_params_24['dropout'])
 nn_24hr.fit(X_train_24, y_train_24)
 
 mse_1hr, mae_1hr = nn_1hr.model.evaluate(X_test_1, y_test_1)
