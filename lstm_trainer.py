@@ -300,12 +300,12 @@ class MyModel(Model):
         for new_layer, old_layer in zip(self.model.layers, nn.model.layers[:-1]):
             new_layer.set_weights(old_layer.get_weights())
 
-no_dense_1hr = MyModel(nn_1hr, X_train_1.shape)
-no_dense_1hr.save('no_dense_1hr.h5')
-no_dense_6hr = MyModel(nn_6hr, X_train_6.shape)
-no_dense_6hr.save('no_dense_hr.h5')
-no_dense_24hr = MyModel(nn_24hr, X_train_24.shape)
-no_dense_24hr.save('no_dense_24hr.h5')
+#no_dense_1hr = MyModel(nn_1hr, X_train_1.shape)
+#no_dense_1hr.save('no_dense_1hr.h5')
+#no_dense_6hr = MyModel(nn_6hr, X_train_6.shape)
+#no_dense_6hr.save('no_dense_hr.h5')
+#no_dense_24hr = MyModel(nn_24hr, X_train_24.shape)
+#no_dense_24hr.save('no_dense_24hr.h5')
 
 feature_matrix_1hr = no_dense_1hr.model.predict(X_train_1)
 feature_matrix_1hr = np.hstack((feature_matrix_1hr, y_train_1.reshape(-1,1)))

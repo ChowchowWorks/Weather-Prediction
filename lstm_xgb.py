@@ -224,7 +224,7 @@ def plot_predictions_vs_actual(predictions, actual, task_name):
     plt.figure(figsize=(10, 6))
     plt.plot(actual, label='Actual', color='blue')
     plt.plot(predictions, label='Predicted', color='red', linestyle='--')
-    plt.title(f'Predictions vs Actual for {task_name} - XGBoost')
+    plt.title(f'Predictions vs Actual for {task_name} - LSTM_XGBoost')
     plt.xlabel('Time')
     plt.ylabel('Relative Humidity')
     plt.legend()
@@ -236,3 +236,26 @@ def plot_predictions_vs_actual(predictions, actual, task_name):
 plot_predictions_vs_actual(predictions_1hr, y_test_1hr, "1 Hour")
 plot_predictions_vs_actual(predictions_6hr, y_test_6hr, "6 Hours")
 plot_predictions_vs_actual(predictions_24hr, y_test_24hr, "24 Hours")
+
+residuals_1hr = y_test_1hr - predictions_1hr
+residuals_6hr = y_test_6hr - predictions_6hr
+residuals_24hr = y_test_24hr - predictions_24hr
+
+plt.hist(residuals_1hr, bins= 45)
+plt.title("Histogram of Residuals")
+plt.xlabel("Residuals")
+plt.ylabel("Frequency")
+plt.show()
+plt.close()
+plt.hist(residuals_6hr, bins = 45)
+plt.title("Histogram of Residuals")
+plt.xlabel("Residuals")
+plt.ylabel("Frequency")
+plt.show()
+plt.close()
+plt.hist(residuals_24hr, bins = 45)
+plt.title("Histogram of Residuals")
+plt.xlabel("Residuals")
+plt.ylabel("Frequency")
+plt.show()
+plt.close()
