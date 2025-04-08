@@ -17,18 +17,9 @@ df = df[(df["relative_humidity"]<=1)]
 
 # standardise data
 scaler = StandardScaler()
+scaler.fit_transform(df)
 
-# Create a categorical variable that classifies rows as Night and Day 
-    # Define threshold: If surface solar radiation is greater than 0, classify as 'Day', else 'Night'
-df["Day_or_Night"] = np.where(df["surface_solar_radiation"] > 0, "Day", "Night")
-
-# Convert to categorical type (optional, for efficiency)
-df["Day_or_Night"] = df["Day_or_Night"].astype("category")
-
-# reorder the rows
-cols = list(df.columns)
-cols.insert(-1, cols.pop(cols.index("Day_or_Night")))
-df = df[cols]
-
-# View the changes
-print(df.head())
+sns.histplot(df['temperature'], bins=45, kde=True)
+plt.title("Histogram Plot of Temperature")
+plt.show()
+plt.close()
